@@ -36,6 +36,7 @@
 "In Tuck Bar" = "在 Tuck Bar 中显示";
 "Automatic uses Tuck Bar on screens with a notch, where there is no room to expand items." = "自动：在有刘海的屏幕上使用 Tuck Bar，因为菜单栏没有空间展开图标。";
 "Show when hovering over an empty part of the menu bar" = "鼠标悬停在菜单栏空白处时显示";
+"Hover time" = "悬停时间";
 "Show when clicking an empty part of the menu bar" = "点击菜单栏空白处时显示";
 "Show and hide by scrolling in the menu bar" = "在菜单栏上滚动以显示或收起";
 "Hiding again" = "重新隐藏";

@@ -489,8 +489,9 @@ final class MenuBarController: ObservableObject {
                 return
             }
             guard hoverTask == nil else { return }
+            let delay = settings.hoverDelay
             hoverTask = Task { [weak self] in
-                try? await Task.sleep(for: .milliseconds(250))
+                try? await Task.sleep(for: .seconds(delay))
                 guard let self, !Task.isCancelled else { return }
                 hoverTask = nil
                 if isInEmptyArea(Mouse.location, on: screen) {

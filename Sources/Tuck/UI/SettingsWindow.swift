@@ -97,6 +97,16 @@ struct GeneralPane: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Show when hovering over an empty part of the menu bar", isOn: $settings.showOnHover)
+                if settings.showOnHover {
+                    LabeledContent("Hover time") {
+                        HStack {
+                            Slider(value: $settings.hoverDelay, in: 0.1...2, step: 0.1)
+                            Text(String(format: "%.1f s", settings.hoverDelay))
+                                .monospacedDigit()
+                                .frame(width: 40, alignment: .trailing)
+                        }
+                    }
+                }
                 Toggle("Show when clicking an empty part of the menu bar", isOn: $settings.showOnClick)
                 Toggle("Show and hide by scrolling in the menu bar", isOn: $settings.showOnScroll)
             }

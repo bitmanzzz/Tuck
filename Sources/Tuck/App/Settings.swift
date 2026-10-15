@@ -37,6 +37,10 @@ final class Settings: ObservableObject {
     @Published var showOnHover: Bool {
         didSet { defaults.set(showOnHover, forKey: Keys.showOnHover) }
     }
+    /// Seconds the pointer must rest on the menu bar before hover shows items.
+    @Published var hoverDelay: Double {
+        didSet { defaults.set(hoverDelay, forKey: Keys.hoverDelay) }
+    }
     @Published var showOnClick: Bool {
         didSet { defaults.set(showOnClick, forKey: Keys.showOnClick) }
     }
@@ -79,6 +83,7 @@ final class Settings: ObservableObject {
         defaults.register(defaults: [
             Keys.displayMode: DisplayMode.automatic.rawValue,
             Keys.showOnHover: false,
+            Keys.hoverDelay: 0.3,
             Keys.showOnClick: true,
             Keys.showOnScroll: false,
             Keys.rehideStrategy: RehideStrategy.smart.rawValue,
@@ -87,6 +92,7 @@ final class Settings: ObservableObject {
         ])
         displayMode = DisplayMode(rawValue: defaults.string(forKey: Keys.displayMode) ?? "") ?? .automatic
         showOnHover = defaults.bool(forKey: Keys.showOnHover)
+        hoverDelay = defaults.double(forKey: Keys.hoverDelay)
         showOnClick = defaults.bool(forKey: Keys.showOnClick)
         showOnScroll = defaults.bool(forKey: Keys.showOnScroll)
         rehideStrategy = RehideStrategy(rawValue: defaults.string(forKey: Keys.rehideStrategy) ?? "") ?? .smart
@@ -105,6 +111,7 @@ final class Settings: ObservableObject {
     private enum Keys {
         static let displayMode = "displayMode"
         static let showOnHover = "showOnHover"
+        static let hoverDelay = "hoverDelay"
         static let showOnClick = "showOnClick"
         static let showOnScroll = "showOnScroll"
         static let rehideStrategy = "rehideStrategy"
