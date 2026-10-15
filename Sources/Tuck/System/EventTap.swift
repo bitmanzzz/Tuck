@@ -1,7 +1,8 @@
 import AppKit
 
-/// A listen-only event tap. Unlike NSEvent global monitors it also sees events
-/// over this app's own windows, such as the expanded section dividers.
+/// An event tap that observes events without changing them. Unlike NSEvent global
+/// monitors it also sees events over this app's own windows, such as the
+/// collapsed section dividers.
 @MainActor
 final class EventTap {
     typealias Handler = @MainActor (CGEventType, CGEvent) -> Void
@@ -23,7 +24,10 @@ final class EventTap {
         let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .tailAppendEventTap,
-            options: .listenOnly,
+            // A listen-only tap needs the Input Monitoring permission and, without
+            // it, is created but silently receives nothing. An active tap needs
+            // only Accessibility. Events are always passed through unchanged.
+            options: .defaultTap,
             eventsOfInterest: mask,
             callback: { _, type, event, refcon in
                 guard let refcon else { return Unmanaged.passUnretained(event) }

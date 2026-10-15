@@ -592,9 +592,26 @@ private final class GeometryCache {
         updated = .distantPast
     }
 
+    /// Estimates where Tuck's own menus end from their titles.
+    private static func ownMenusMaxX(screen: NSScreen) -> CGFloat {
+        let font = NSFont.menuBarFont(ofSize: 0)
+        let bold = NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask)
+        let titles = NSApp.mainMenu?.items.compactMap { $0.submenu?.title } ?? []
+        var x = screen.cgFrame.minX + 40 // Apple menu
+        for (index, title) in titles.enumerated() {
+            let name = index == 0 ? (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Tuck") : title
+            x += (name as NSString).size(withAttributes: [.font: index == 0 ? bold : font]).width + 22
+        }
+        return x
+    }
+
     func refreshIfNeeded(screen: NSScreen) {
         guard !isRefreshing, Date().timeIntervalSince(updated) > 1 else { return }
         guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else { return }
+        if pid == ProcessInfo.processInfo.processIdentifier {
+            // Accessibility can't report the positions of our own menus.
+            menuMaxX[pid] = Self.ownMenusMaxX(screen: screen)
+        }
         isRefreshing = true
         let screenFrame = screen.cgFrame
         Task {
@@ -607,7 +624,7 @@ private final class GeometryCache {
                 return (menus, items)
             }.value
             // Keep the last known value if an app is briefly unresponsive.
-            if let menus { menuMaxX[pid] = menus }
+            if let menus, pid != ProcessInfo.processInfo.processIdentifier { menuMaxX[pid] = menus }
             statusItemsMinX = items
             updated = Date()
             isRefreshing = false

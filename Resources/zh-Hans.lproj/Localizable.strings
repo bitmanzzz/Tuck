@@ -82,3 +82,16 @@
 "Version %@" = "版本 %@";
 "A tiny, native menu bar manager for macOS." = "一个小巧的原生 macOS 菜单栏管理工具。";
 "Inspired by Ice by Jordan Baird." = "灵感来自 Jordan Baird 的 Ice。";
+
+/* Main menu */
+"About Tuck" = "关于 Tuck";
+"Edit" = "编辑";
+"Undo" = "撤销";
+"Redo" = "重做";
+"Cut" = "剪切";
+"Copy" = "拷贝";
+"Paste" = "粘贴";
+"Select All" = "全选";
+"Window" = "窗口";
+"Close" = "关闭";
+"Minimize" = "最小化";
