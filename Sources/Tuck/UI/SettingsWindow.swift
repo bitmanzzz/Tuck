@@ -224,9 +224,14 @@ private struct SectionRow: View {
         let tile = ItemTile(item: item, image: controller.images[item.windowID], height: 22)
             .padding(.horizontal, 2)
             .background(RoundedRectangle(cornerRadius: 5).fill(Color.primary.opacity(0.06)))
+            .overlay {
+                if item.isTuck {
+                    RoundedRectangle(cornerRadius: 5).strokeBorder(Color.accentColor, lineWidth: 1.5)
+                }
+            }
             .help(item.name)
             .contextMenu {
-                ForEach(MenuBarSection.allCases.filter { $0 != section && (controller.settings.alwaysHiddenEnabled || $0 != .alwaysHidden) }) { target in
+                ForEach(MenuBarSection.allCases.filter { $0 != section && !item.isTuck && (controller.settings.alwaysHiddenEnabled || $0 != .alwaysHidden) }) { target in
                     Button {
                         Task { await controller.move(item, to: target, before: nil) }
                     } label: {
@@ -249,7 +254,8 @@ private struct SectionRow: View {
             let key = keys.first,
             let windowID = CGWindowID(key),
             let item = controller.items.values.joined().first(where: { $0.windowID == windowID }),
-            item.windowID != target?.windowID
+            item.windowID != target?.windowID,
+            !item.isTuck || section == .visible
         else { return false }
         Task { await controller.move(item, to: section, before: target) }
         return true

@@ -25,6 +25,8 @@ struct MenuBarItem: Identifiable, Hashable {
     let name: String
     let isMovable: Bool
     let axElement: AXElement?
+    /// Tuck's own icon. It may move within the visible section only.
+    var isTuck = false
 
     var id: CGWindowID { windowID }
 

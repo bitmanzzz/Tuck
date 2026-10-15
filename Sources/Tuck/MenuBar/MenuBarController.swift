@@ -158,6 +158,24 @@ final class MenuBarController: ObservableObject {
         apply()
         lastActivity = Date()
         startRehideTimer()
+        captureWhileShown()
+    }
+
+    /// Off-screen items can't be captured, so refresh their images whenever
+    /// their section is on screen.
+    private func captureWhileShown() {
+        guard Permissions.screenRecording else { return }
+        Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            guard isHiddenShown, !isArranging else { return }
+            await captureKnownItems()
+        }
+    }
+
+    private func captureKnownItems() async {
+        let known = Array(items.values.joined())
+        guard !known.isEmpty else { return }
+        images.merge(await ItemImages.capture(known)) { _, new in new }
     }
 
     private func apply() {
@@ -305,21 +323,45 @@ final class MenuBarController: ObservableObject {
             ItemScanner.scan(anchor: anchor, excluding: ownFrames)
         }.value
 
+        var all = scanned
+        if let tuck = tuckIconItem(anchor: anchor) {
+            all.append(tuck)
+            all.sort { $0.frame.minX < $1.frame.minX }
+        }
         var grouped: [MenuBarSection: [MenuBarItem]] = [:]
-        for item in scanned {
+        for item in all {
             grouped[section(of: item, dividers: dividers), default: []].append(item)
         }
         items = grouped
 
         if captureImages {
-            let captured = await ItemImages.capture(scanned)
+            let captured = await ItemImages.capture(all)
             images.merge(captured) { _, new in new }
         }
+    }
+
+    /// The Tuck icon as a layout item, so users can choose where it sits.
+    private func tuckIconItem(anchor: CGRect) -> MenuBarItem? {
+        guard let window = WindowServer.statusWindows().first(where: {
+            abs($0.frame.midX - anchor.midX) < 4 && abs($0.frame.minY - anchor.minY) < 2 && abs($0.frame.width - anchor.width) < 4
+        }) else { return nil }
+        return MenuBarItem(
+            windowID: window.windowID,
+            frame: window.frame,
+            pid: ProcessInfo.processInfo.processIdentifier,
+            bundleID: Bundle.main.bundleIdentifier,
+            name: "Tuck",
+            isMovable: true,
+            axElement: nil,
+            isTuck: true
+        )
     }
 
     /// Moves an item into a section, optionally to the left of another item.
     func move(_ item: MenuBarItem, to section: MenuBarSection, before target: MenuBarItem?) async {
         guard Permissions.accessibility, !isArranging else { return }
+        // The Tuck icon must stay right of the hidden divider.
+        guard !item.isTuck || section == .visible else { return }
         isArranging = true
         lastError = nil
         let wasHiddenShown = isHiddenShown
@@ -329,6 +371,7 @@ final class MenuBarController: ObservableObject {
         isAlwaysHiddenShown = true
         apply()
         try? await Task.sleep(for: .milliseconds(350))
+        await captureKnownItems()
 
         let destination: ItemMover.Destination?
         if let target, let frame = WindowServer.frame(of: target.windowID) {

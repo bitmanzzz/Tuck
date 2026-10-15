@@ -99,8 +99,10 @@ struct ItemTile: View {
         Group {
             if let image {
                 Image(nsImage: image)
+                    .renderingMode(image.isTemplate ? .template : .original)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.primary)
                     .frame(width: image.size.width * height / max(image.size.height, 1), height: height)
             } else if let icon = item.application?.icon {
                 Image(nsImage: icon)

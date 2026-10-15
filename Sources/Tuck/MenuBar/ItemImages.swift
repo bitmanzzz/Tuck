@@ -31,7 +31,16 @@ enum ItemImages {
                 }
             }
             for await (id, image) in group {
-                if let image, !isBlank(image) {
+                guard let image, let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { continue }
+                switch analyze(cgImage) {
+                case .blank:
+                    continue
+                case .monochrome:
+                    // Menu bar glyphs are drawn white or black to suit the menu bar,
+                    // which can be invisible elsewhere. Let the UI tint them instead.
+                    image.isTemplate = true
+                    images[id] = image
+                case .color:
                     images[id] = image
                 }
             }
@@ -39,24 +48,40 @@ enum ItemImages {
         return images
     }
 
-    /// Fully transparent captures happen for items that have not drawn yet.
-    private static func isBlank(_ image: NSImage) -> Bool {
-        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
-              let data = cgImage.dataProvider?.data,
-              let bytes = CFDataGetBytePtr(data)
-        else { return true }
-        let length = CFDataGetLength(data)
-        let bytesPerPixel = max(cgImage.bitsPerPixel / 8, 1)
-        let alphaOffset: Int
-        switch cgImage.alphaInfo {
-        case .premultipliedFirst, .first, .noneSkipFirst: alphaOffset = 0
-        default: alphaOffset = bytesPerPixel - 1
+    private enum Content {
+        case blank, monochrome, color
+    }
+
+    private static func analyze(_ image: CGImage) -> Content {
+        let width = image.width
+        let height = image.height
+        guard width > 0, height > 0 else { return .blank }
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(
+                data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else { return false }
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
         }
-        var index = alphaOffset
-        while index < length {
-            if bytes[index] > 8 { return false }
-            index += bytesPerPixel * 3
+        guard drawn else { return .blank }
+
+        var visible = 0
+        var colorful = 0
+        for index in stride(from: 0, to: pixels.count, by: 4) {
+            let alpha = Int(pixels[index + 3])
+            guard alpha > 40 else { continue }
+            visible += 1
+            // Un-premultiply before measuring how far the channels spread apart.
+            let r = Int(pixels[index]) * 255 / alpha
+            let g = Int(pixels[index + 1]) * 255 / alpha
+            let b = Int(pixels[index + 2]) * 255 / alpha
+            if max(r, g, b) - min(r, g, b) > 48 {
+                colorful += 1
+            }
         }
-        return true
+        if visible == 0 { return .blank }
+        return colorful * 20 > visible ? .color : .monochrome
     }
 }
