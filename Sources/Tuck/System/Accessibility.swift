@@ -96,10 +96,10 @@ enum AXMenuBar {
         }
     }
 
-    /// Right edge of the frontmost app's menus, in CoreGraphics coordinates.
-    static func applicationMenuMaxX() -> CGFloat? {
-        guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
-        let element = AXElement.application(app.processIdentifier, timeout: 0.1)
+    /// Right edge of an app's menus, in CoreGraphics coordinates. Call off the
+    /// main thread: the app may be Tuck itself, which answers on its main thread.
+    static func applicationMenuMaxX(pid: pid_t) -> CGFloat? {
+        let element = AXElement.application(pid, timeout: 0.5)
         guard let bar = element.attribute(kAXMenuBarAttribute, as: AXUIElement.self) else { return nil }
         return AXElement(raw: bar).children.compactMap(\.frame).filter { $0.width > 0 }.map(\.maxX).max()
     }

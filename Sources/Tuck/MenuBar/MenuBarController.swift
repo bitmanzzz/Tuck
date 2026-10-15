@@ -39,7 +39,7 @@ final class MenuBarController: ObservableObject {
     private var hoverTask: Task<Void, Never>?
     private var lastActivity = Date()
     private var isTemporaryReveal = false
-    private var geometry = GeometryCache()
+    private let geometry = GeometryCache()
     private var cancellables = Set<AnyCancellable>()
 
     init(settings: Settings) {
@@ -461,6 +461,9 @@ final class MenuBarController: ObservableObject {
 
     private func frontmostAppChanged() {
         geometry.invalidate()
+        if let screen = iconScreen {
+            geometry.refreshIfNeeded(screen: screen)
+        }
         guard !mover.isBusy, !isArranging else { return }
         if NSWorkspace.shared.frontmostApplication?.processIdentifier == ProcessInfo.processInfo.processIdentifier {
             return
@@ -573,23 +576,41 @@ final class MenuBarController: ObservableObject {
 }
 
 /// Positions in the menu bar that only change when apps or Tuck's state change.
-private struct GeometryCache {
-    var applicationMenuMaxX: CGFloat?
-    var statusItemsMinX: CGFloat?
+/// Refreshed in the background so pointer handling never waits on another app.
+@MainActor
+private final class GeometryCache {
+    private var menuMaxX: [pid_t: CGFloat] = [:]
+    private(set) var statusItemsMinX: CGFloat?
     private var updated = Date.distantPast
+    private var isRefreshing = false
 
-    mutating func invalidate() {
+    var applicationMenuMaxX: CGFloat? {
+        NSWorkspace.shared.frontmostApplication.flatMap { menuMaxX[$0.processIdentifier] }
+    }
+
+    func invalidate() {
         updated = .distantPast
     }
 
-    mutating func refreshIfNeeded(screen: NSScreen) {
-        guard Date().timeIntervalSince(updated) > 1 else { return }
-        updated = Date()
-        applicationMenuMaxX = AXMenuBar.applicationMenuMaxX()
+    func refreshIfNeeded(screen: NSScreen) {
+        guard !isRefreshing, Date().timeIntervalSince(updated) > 1 else { return }
+        guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else { return }
+        isRefreshing = true
         let screenFrame = screen.cgFrame
-        statusItemsMinX = WindowServer.statusWindows()
-            .filter { abs($0.frame.minY - screenFrame.minY) < 2 && $0.frame.minX >= screenFrame.minX && $0.frame.maxX <= screenFrame.maxX }
-            .map(\.frame.minX)
-            .min()
+        Task {
+            let (menus, items) = await Task.detached {
+                let menus = AXMenuBar.applicationMenuMaxX(pid: pid)
+                let items = WindowServer.statusWindows()
+                    .filter { abs($0.frame.minY - screenFrame.minY) < 2 && $0.frame.minX >= screenFrame.minX && $0.frame.maxX <= screenFrame.maxX }
+                    .map(\.frame.minX)
+                    .min()
+                return (menus, items)
+            }.value
+            // Keep the last known value if an app is briefly unresponsive.
+            if let menus { menuMaxX[pid] = menus }
+            statusItemsMinX = items
+            updated = Date()
+            isRefreshing = false
+        }
     }
 }
