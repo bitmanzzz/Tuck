@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    env:
+      SIGNING_P12_BASE64: ${{ secrets.SIGNING_P12_BASE64 }}
+      SIGNING_P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import signing identity
+        if: env.SIGNING_P12_BASE64 != ''
+        run: |
+          echo "$SIGNING_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/tuck.p12"
+          scripts/import-signing-identity.sh "$RUNNER_TEMP/tuck.p12" "$SIGNING_P12_PASSWORD" "$RUNNER_TEMP/tuck.keychain-db"
+          echo "SIGN_KEYCHAIN=$RUNNER_TEMP/tuck.keychain-db" >> "$GITHUB_ENV"
+
+      - name: Build universal app
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.0-dev"
+          fi
+          VERSION="$VERSION" BUILD="${{ github.run_number }}" PACKAGE=1 scripts/build-app.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Tuck
+          path: dist/*.zip
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true

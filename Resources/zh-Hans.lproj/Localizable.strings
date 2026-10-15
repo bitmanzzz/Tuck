@@ -1,0 +1,83 @@
+/* Sections */
+"Visible" = "显示";
+"Hidden" = "隐藏";
+"Always Hidden" = "始终隐藏";
+"Unknown" = "未知";
+
+/* Moving items */
+"This item can't be moved." = "这个图标无法移动。";
+"The item isn't visible on screen, so it can't be moved." = "这个图标不在屏幕上，无法移动。";
+"macOS didn't accept the move." = "macOS 没有接受这次移动。";
+"The Tuck icon must sit to the right of the divider. Hold ⌘ and drag it back." = "Tuck 图标必须在分隔线右侧。请按住 ⌘ 把它拖回去。";
+
+/* Status menu */
+"Hide Hidden Items" = "收起隐藏的图标";
+"Show Hidden Items" = "显示隐藏的图标";
+"Show Always-Hidden Items" = "显示始终隐藏的图标";
+"Edit Layout…" = "编辑布局…";
+"Settings…" = "设置…";
+"Quit Tuck" = "退出 Tuck";
+
+/* Tuck Bar */
+"No hidden items" = "没有隐藏的图标";
+
+/* Settings */
+"Tuck Settings" = "Tuck 设置";
+"General" = "通用";
+"Layout" = "布局";
+"Hotkeys" = "快捷键";
+"Permissions" = "权限";
+"About" = "关于";
+"Launch at login" = "登录时启动";
+"Showing hidden items" = "显示隐藏的图标";
+"Show hidden items" = "显示位置";
+"Automatic" = "自动";
+"In the menu bar" = "在菜单栏中展开";
+"In Tuck Bar" = "在 Tuck Bar 中显示";
+"Automatic uses Tuck Bar on screens with a notch, where there is no room to expand items." = "自动：在有刘海的屏幕上使用 Tuck Bar，因为菜单栏没有空间展开图标。";
+"Show when hovering over an empty part of the menu bar" = "鼠标悬停在菜单栏空白处时显示";
+"Show when clicking an empty part of the menu bar" = "点击菜单栏空白处时显示";
+"Show and hide by scrolling in the menu bar" = "在菜单栏上滚动以显示或收起";
+"Hiding again" = "重新隐藏";
+"Hide items again" = "何时重新隐藏";
+"When the pointer leaves the menu bar" = "鼠标离开菜单栏后";
+"After a set time" = "经过一段时间后";
+"When switching apps" = "切换应用时";
+"Never" = "从不";
+"Delay" = "延迟";
+"%lld s" = "%lld 秒";
+"Sections" = "分区";
+"Enable the always-hidden section" = "启用“始终隐藏”分区";
+"Items in this section stay hidden until you ⌥-click the Tuck icon." = "这个分区的图标会一直隐藏，按住 ⌥ 点击 Tuck 图标才会显示。";
+
+/* Layout */
+"Drag icons between the rows to rearrange your menu bar. Items in each row appear in menu bar order, left to right." = "在各行之间拖动图标即可调整菜单栏。每一行的顺序与菜单栏一致，从左到右。";
+"Moving…" = "正在移动…";
+"Grant Screen Recording to see real icons." = "授予屏幕录制权限后可显示真实图标。";
+"Refresh" = "刷新";
+"Move to %@" = "移到“%@”";
+
+/* Hotkeys */
+"Show or hide hidden items" = "显示或收起隐藏的图标";
+"Show or hide always-hidden items" = "显示或收起始终隐藏的图标";
+"Show or hide Tuck Bar" = "显示或关闭 Tuck Bar";
+"Click a field, then press the shortcut. Press Esc to cancel." = "点击按钮后按下快捷键，按 Esc 取消。";
+"Press shortcut…" = "请按快捷键…";
+"Record Shortcut" = "录制快捷键";
+
+/* Permissions */
+"Accessibility" = "辅助功能";
+"Required to identify, open and rearrange other apps' menu bar items, and for hover and click triggers. Basic hiding works without it." = "用于识别、打开和重新排列其他 App 的菜单栏图标，以及悬停和点击触发。不授权时，基础的隐藏功能仍然可用。";
+"Screen Recording" = "屏幕录制";
+"Optional. Shows the real icons of hidden items in Tuck Bar and the layout editor. Tuck never records your screen. Without it, app icons are shown." = "可选。用于在 Tuck Bar 和布局编辑器中显示隐藏图标的真实样子。Tuck 不会录制你的屏幕。不授权时显示 App 图标。";
+"macOS may require a relaunch before new permissions take effect." = "新授予的权限可能需要重启 Tuck 才能生效。";
+"Relaunch Tuck" = "重启 Tuck";
+"Granted" = "已授权";
+"Grant…" = "授权…";
+"The layout editor needs the Accessibility permission." = "布局编辑器需要辅助功能权限。";
+"Grant Accessibility…" = "授予辅助功能权限…";
+
+/* About */
+"Version %@" = "版本 %@";
+"A tiny, native menu bar manager for macOS." = "一个小巧的原生 macOS 菜单栏管理工具。";
+"Inspired by Ice by Jordan Baird." = "灵感来自 Jordan Baird 的 Ice。";
