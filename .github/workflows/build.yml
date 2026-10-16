@@ -40,8 +40,10 @@ jobs:
           name: Tuck
           path: dist/*.zip
 
+      # Never publish ad-hoc builds: their signature changes every build, so users
+      # would have to grant permissions again after each update.
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') && env.SIGNING_P12_BASE64 != ''
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.zip
