@@ -15,6 +15,7 @@ A tiny, native menu bar manager for macOS. Hide the menu bar icons you don't nee
 - **Tuck Bar**: a panel below the menu bar that lists hidden icons. Used automatically on screens with a notch.
 - Layout editor: drag icons between the Visible, Hidden and Always Hidden rows.
 - Hides again automatically: when the pointer leaves the menu bar, after a set time, or when you switch apps.
+- Item spacing: Standard, Compact or Tighter, so more icons fit beside the notch. This changes a macOS setting that applies after you log out and back in.
 - Checks GitHub for new versions and installs them in place, keeping your permissions.
 - Launch at login. English and Simplified Chinese.
 

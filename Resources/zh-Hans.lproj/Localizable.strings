@@ -121,3 +121,13 @@
 "The download isn't signed like this copy of Tuck, so it wasn't installed." = "下载的文件和当前 Tuck 的签名不一致，没有安装。";
 "This copy of Tuck was built locally and can't update itself." = "这份 Tuck 是本地构建的，无法自动更新。";
 "Move Tuck to the Applications folder first, then try again." = "请先把 Tuck 移到“应用程序”文件夹，再重试。";
+
+/* Item spacing */
+"Item spacing" = "图标间距";
+"Space between items" = "图标之间的间距";
+"Standard" = "标准";
+"Compact" = "紧凑";
+"Tighter" = "更紧凑";
+"Custom (%lld)" = "自定义（%lld）";
+"Log out and back in to apply the new spacing to every item." = "注销并重新登录后，所有图标才会使用新间距。";
+"Tighter spacing fits more items beside the notch. This is a macOS setting: it applies after you log out and back in, and stays until you set it back to Standard." = "间距越小，刘海旁边能放下的图标越多。这是 macOS 的系统设置：注销并重新登录后生效，改回“标准”之前会一直保留。";

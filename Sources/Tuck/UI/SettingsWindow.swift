@@ -88,6 +88,8 @@ struct SettingsView: View {
 struct GeneralPane: View {
     @ObservedObject var controller: MenuBarController
     @ObservedObject var settings: Settings
+    @State private var spacing = ItemSpacing.current
+    @State private var spacingChanged = false
 
     var body: some View {
         Form {
@@ -150,6 +152,28 @@ struct GeneralPane: View {
                 Text("Items in this section stay hidden until you ⌥-click the Tuck icon.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+            Section("Item spacing") {
+                Picker("Space between items", selection: $spacing) {
+                    Text("Standard").tag(ItemSpacing.standard)
+                    Text("Compact").tag(ItemSpacing.compact)
+                    Text("Tighter").tag(ItemSpacing.tighter)
+                    if case .custom(let value) = spacing {
+                        Text("Custom (\(value))").tag(spacing)
+                    }
+                }
+                .onChange(of: spacing) { _, newValue in
+                    newValue.apply()
+                    spacingChanged = true
+                }
+                if spacingChanged {
+                    Label("Log out and back in to apply the new spacing to every item.", systemImage: "arrow.clockwise")
+                        .foregroundStyle(.orange)
+                } else {
+                    Text("Tighter spacing fits more items beside the notch. This is a macOS setting: it applies after you log out and back in, and stays until you set it back to Standard.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .formStyle(.grouped)
