@@ -61,13 +61,12 @@ open build/Tuck.app
 
 - **Hiding**: each divider is an `NSStatusItem`. Collapsing a section sets the divider's length to 10 000 pt, which pushes every item to its left off the screen.
 - **Finding items**: the window server lists menu bar item windows and their frames. Since macOS 26 all of them belong to Control Center, so Tuck matches each window to its owning app through the Accessibility API (`AXExtrasMenuBar`).
-- **Moving items**: Tuck replays a ⌘-drag, the same gesture you would use.
+- **Moving items**: Tuck replays a ⌘-drag, the same gesture you would use. The events name the item's window, so icons behind the notch or off screen can be moved too.
 - **Opening items**: Tuck shows the section, then presses the item through Accessibility.
 - **Images**: ScreenCaptureKit captures item windows, including ones that are off screen.
 
 ## Known limitations
 
-- Moving an item requires it to be visible on screen. With many icons on a notched display, some may not fit even when every section is shown.
 - Tuck uses a few private CoreGraphics functions to list menu bar windows, so a future macOS release may break it.
 
 ## Credits

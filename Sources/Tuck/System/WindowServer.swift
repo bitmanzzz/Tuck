@@ -59,6 +59,10 @@ enum WindowServer {
         return rect
     }
 
+    static func ownerPID(of windowID: CGWindowID) -> pid_t? {
+        describe([windowID]).first?.window.ownerPID
+    }
+
     /// Lets the app hide the cursor while it is not frontmost (needed while moving items).
     static func allowCursorHidingInBackground() {
         let cid = CGSMainConnectionID()

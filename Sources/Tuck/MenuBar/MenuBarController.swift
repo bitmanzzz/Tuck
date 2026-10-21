@@ -342,9 +342,7 @@ final class MenuBarController: ObservableObject {
 
     /// The Tuck icon as a layout item, so users can choose where it sits.
     private func tuckIconItem(anchor: CGRect) -> MenuBarItem? {
-        guard let window = WindowServer.statusWindows().first(where: {
-            abs($0.frame.midX - anchor.midX) < 4 && abs($0.frame.minY - anchor.minY) < 2 && abs($0.frame.width - anchor.width) < 4
-        }) else { return nil }
+        guard let window = statusWindow(at: anchor) else { return nil }
         return MenuBarItem(
             windowID: window.windowID,
             frame: window.frame,
@@ -374,16 +372,16 @@ final class MenuBarController: ObservableObject {
         await captureKnownItems()
 
         let destination: ItemMover.Destination?
-        if let target, let frame = WindowServer.frame(of: target.windowID) {
-            destination = .leftOf(frame)
+        if let target {
+            destination = .leftOf(target.windowID)
         } else {
             switch section {
             case .visible:
-                destination = frame(of: hiddenDivider).map { .rightOf($0) }
+                destination = windowID(of: hiddenDivider).map { .rightOf($0) }
             case .hidden:
-                destination = frame(of: hiddenDivider).map { .leftOf($0) }
+                destination = windowID(of: hiddenDivider).map { .leftOf($0) }
             case .alwaysHidden:
-                destination = (alwaysHiddenDivider.flatMap(frame(of:)) ?? frame(of: hiddenDivider)).map { .leftOf($0) }
+                destination = (alwaysHiddenDivider.flatMap(windowID(of:)) ?? windowID(of: hiddenDivider)).map { .leftOf($0) }
             }
         }
         if let destination {
@@ -546,6 +544,18 @@ final class MenuBarController: ObservableObject {
     private func frame(of item: NSStatusItem) -> CGRect? {
         guard let frame = item.button?.window?.frame, frame.height > 0 else { return nil }
         return frame.flipped
+    }
+
+    /// The WindowServer window showing a frame in the menu bar. On macOS 26 status
+    /// item windows belong to Control Center, so our own window numbers don't apply.
+    private func statusWindow(at frame: CGRect) -> StatusWindow? {
+        WindowServer.statusWindows().first {
+            abs($0.frame.midX - frame.midX) < 4 && abs($0.frame.minY - frame.minY) < 2 && abs($0.frame.width - frame.width) < 4
+        }
+    }
+
+    private func windowID(of item: NSStatusItem) -> CGWindowID? {
+        frame(of: item).flatMap(statusWindow(at:))?.windowID
     }
 
     private static func seedPosition(_ position: CGFloat, for autosaveName: String) {
