@@ -19,6 +19,7 @@ final class SettingsWindowController {
     private let controller: MenuBarController
     private let navigation = SettingsNavigation()
     private var window: NSWindow?
+    private var closeObserver: NSObjectProtocol?
 
     init(controller: MenuBarController) {
         self.controller = controller
@@ -34,9 +35,24 @@ final class SettingsWindowController {
             window.isReleasedWhenClosed = false
             window.center()
             self.window = window
+            // A closed window only hides, keeping every pane alive with its
+            // timers and monitors. Drop it and build a fresh one next time.
+            closeObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.willCloseNotification, object: window, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.windowWillClose() }
+            }
         }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    private func windowWillClose() {
+        if let closeObserver {
+            NotificationCenter.default.removeObserver(closeObserver)
+        }
+        closeObserver = nil
+        window = nil
     }
 }
 
@@ -363,7 +379,6 @@ struct HotkeyRecorder: View {
 struct PermissionsPane: View {
     @State private var accessibility = Permissions.accessibility
     @State private var screenRecording = Permissions.screenRecording
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         Form {
@@ -391,9 +406,14 @@ struct PermissionsPane: View {
             }
         }
         .formStyle(.grouped)
-        .onReceive(timer) { _ in
-            accessibility = Permissions.accessibility
-            screenRecording = Permissions.screenRecording
+        // Each check is a round trip to the privacy daemon, so only poll while
+        // this pane is on screen; the task ends when it disappears.
+        .task {
+            while !Task.isCancelled {
+                accessibility = Permissions.accessibility
+                screenRecording = Permissions.screenRecording
+                try? await Task.sleep(for: .seconds(1))
+            }
         }
     }
 
