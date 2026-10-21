@@ -25,6 +25,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { HotkeyCenter.shared.apply($0) }
             .store(in: &cancellables)
 
+        Updater.shared.startAutomaticChecks(settings: settings)
+
         if !Permissions.accessibility {
             settingsWindow.show(.permissions)
         }
@@ -37,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: String(localized: "About Tuck"), action: #selector(showAbout), keyEquivalent: "").target = self
+        appMenu.addItem(withTitle: String(localized: "Check for Updates…"), action: #selector(checkForUpdates), keyEquivalent: "").target = self
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: String(localized: "Settings…"), action: #selector(showSettings), keyEquivalent: ",").target = self
         appMenu.addItem(.separator())
@@ -64,6 +67,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showAbout() {
         settingsWindow.show(.about)
+    }
+
+    @objc private func checkForUpdates() {
+        Task { await Updater.shared.check(userInitiated: true) }
     }
 
     @objc private func showSettings() {

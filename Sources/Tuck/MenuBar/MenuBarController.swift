@@ -242,6 +242,7 @@ final class MenuBarController: ObservableObject {
         menu.addItem(.separator())
         menu.addItem(withTitle: String(localized: "Edit Layout…"), action: #selector(menuLayout), keyEquivalent: "").target = self
         menu.addItem(withTitle: String(localized: "Settings…"), action: #selector(menuSettings), keyEquivalent: ",").target = self
+        menu.addItem(withTitle: String(localized: "Check for Updates…"), action: #selector(menuCheckForUpdates), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: String(localized: "Quit Tuck"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         iconItem.menu = menu
@@ -253,6 +254,7 @@ final class MenuBarController: ObservableObject {
     @objc private func menuShowAlwaysHidden() { showInline(includeAlwaysHidden: true) }
     @objc private func menuLayout() { openSettings?(.layout) }
     @objc private func menuSettings() { openSettings?(.general) }
+    @objc private func menuCheckForUpdates() { Task { await Updater.shared.check(userInitiated: true) } }
 
     private func setAlwaysHiddenDividerEnabled(_ enabled: Bool) {
         if enabled, alwaysHiddenDivider == nil {
