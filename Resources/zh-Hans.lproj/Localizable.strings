@@ -6,8 +6,9 @@
 
 /* Moving items */
 "This item can't be moved." = "这个图标无法移动。";
-"The item isn't visible on screen, so it can't be moved." = "这个图标不在屏幕上，无法移动。";
+"The item is no longer in the menu bar." = "这个图标已不在菜单栏中。";
 "macOS didn't accept the move." = "macOS 没有接受这次移动。";
+"macOS put the item in a different spot." = "macOS 把图标放到了别的位置。";
 "The Tuck icon must sit to the right of the divider. Hold ⌘ and drag it back." = "Tuck 图标必须在分隔线右侧。请按住 ⌘ 把它拖回去。";
 
 /* Status menu */
