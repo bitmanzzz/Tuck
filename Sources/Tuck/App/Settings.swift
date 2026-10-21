@@ -56,6 +56,9 @@ final class Settings: ObservableObject {
     @Published var alwaysHiddenEnabled: Bool {
         didSet { defaults.set(alwaysHiddenEnabled, forKey: Keys.alwaysHiddenEnabled) }
     }
+    @Published var checkForUpdates: Bool {
+        didSet { defaults.set(checkForUpdates, forKey: Keys.checkForUpdates) }
+    }
     @Published var hotkeys: [HotkeyAction: KeyCombo] {
         didSet {
             let encoded = Dictionary(uniqueKeysWithValues: hotkeys.map { ($0.key.rawValue, $0.value) })
@@ -89,6 +92,7 @@ final class Settings: ObservableObject {
             Keys.rehideStrategy: RehideStrategy.smart.rawValue,
             Keys.rehideInterval: 10.0,
             Keys.alwaysHiddenEnabled: false,
+            Keys.checkForUpdates: true,
         ])
         displayMode = DisplayMode(rawValue: defaults.string(forKey: Keys.displayMode) ?? "") ?? .automatic
         showOnHover = defaults.bool(forKey: Keys.showOnHover)
@@ -98,6 +102,7 @@ final class Settings: ObservableObject {
         rehideStrategy = RehideStrategy(rawValue: defaults.string(forKey: Keys.rehideStrategy) ?? "") ?? .smart
         rehideInterval = defaults.double(forKey: Keys.rehideInterval)
         alwaysHiddenEnabled = defaults.bool(forKey: Keys.alwaysHiddenEnabled)
+        checkForUpdates = defaults.bool(forKey: Keys.checkForUpdates)
         if let data = defaults.data(forKey: Keys.hotkeys),
            let decoded = try? JSONDecoder().decode([String: KeyCombo].self, from: data) {
             hotkeys = Dictionary(uniqueKeysWithValues: decoded.compactMap { key, value in
@@ -117,6 +122,7 @@ final class Settings: ObservableObject {
         static let rehideStrategy = "rehideStrategy"
         static let rehideInterval = "rehideInterval"
         static let alwaysHiddenEnabled = "alwaysHiddenEnabled"
+        static let checkForUpdates = "checkForUpdates"
         static let hotkeys = "hotkeys"
     }
 }

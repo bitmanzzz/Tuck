@@ -102,6 +102,7 @@ struct GeneralPane: View {
                     get: { settings.launchAtLogin },
                     set: { settings.launchAtLogin = $0 }
                 ))
+                Toggle("Check for updates automatically", isOn: $settings.checkForUpdates)
             }
             Section("Showing hidden items") {
                 Picker("Show hidden items", selection: $settings.displayMode) {
@@ -456,8 +457,21 @@ private struct PermissionNotice: View {
 // MARK: - About
 
 struct AboutPane: View {
+    @ObservedObject private var updater = Updater.shared
+
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    }
+
+    private var updateStatus: String? {
+        switch updater.status {
+        case .idle: nil
+        case .checking: String(localized: "Checking…")
+        case .upToDate: String(localized: "Tuck is up to date.")
+        case .available(let version): String(localized: "Version \(version) is available.")
+        case .installing: String(localized: "Installing the update…")
+        case .failed(let message): message
+        }
     }
 
     var body: some View {
@@ -469,6 +483,16 @@ struct AboutPane: View {
             Text("Version \(version)").foregroundStyle(.secondary)
             Text("A tiny, native menu bar manager for macOS.")
                 .foregroundStyle(.secondary)
+            Button("Check for Updates…") {
+                Task { await updater.check(userInitiated: true) }
+            }
+            .disabled(updater.status == .checking || updater.status == .installing)
+            .padding(.top, 6)
+            if let updateStatus {
+                Text(updateStatus)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Link("github.com/bitmanzzz/Tuck", destination: URL(string: "https://github.com/bitmanzzz/Tuck")!)
                 .padding(.top, 6)
             Text("Inspired by Ice by Jordan Baird.")

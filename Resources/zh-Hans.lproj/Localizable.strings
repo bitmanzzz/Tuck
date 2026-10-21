@@ -96,3 +96,28 @@
 "Window" = "窗口";
 "Close" = "关闭";
 "Minimize" = "最小化";
+
+/* Updates */
+"Check for Updates…" = "检查更新…";
+"Check for updates automatically" = "自动检查更新";
+"Checking…" = "正在检查…";
+"Tuck is up to date." = "Tuck 已是最新版本。";
+"Tuck is up to date" = "Tuck 已是最新版本";
+"Version %@ is the latest version." = "%@ 是最新版本。";
+"Version %@ is available." = "有新版本 %@ 可用。";
+"Installing the update…" = "正在安装更新…";
+"Tuck %@ is available" = "Tuck %@ 已发布";
+"You have version %@. Tuck will download the update, replace itself and relaunch." = "你当前使用的是 %@。Tuck 会下载更新、替换自身并重新启动。";
+"Install and Relaunch" = "安装并重新启动";
+"Later" = "稍后";
+"Skip This Version" = "跳过这个版本";
+"OK" = "好";
+"Cancel" = "取消";
+"Open Download Page" = "打开下载页面";
+"Couldn't check for updates" = "无法检查更新";
+"Couldn't install the update" = "无法安装更新";
+"GitHub didn't return the latest release." = "GitHub 没有返回最新版本的信息。";
+"The update couldn't be downloaded." = "更新下载失败。";
+"The download isn't signed like this copy of Tuck, so it wasn't installed." = "下载的文件和当前 Tuck 的签名不一致，没有安装。";
+"This copy of Tuck was built locally and can't update itself." = "这份 Tuck 是本地构建的，无法自动更新。";
+"Move Tuck to the Applications folder first, then try again." = "请先把 Tuck 移到“应用程序”文件夹，再重试。";
