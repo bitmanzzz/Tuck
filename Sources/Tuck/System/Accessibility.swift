@@ -46,54 +46,121 @@ struct AXStatusItem: Sendable {
     let frame: CGRect
     let label: String?
     let identifier: String?
+    /// 若该元素仅表示此进程拥有 AXExtrasMenuBar 容器，但当前无可见子项（例如位于 macOS 27 原生溢出区或被隐藏）。
+    var isContainerOnly = false
+
+    var hasVisibleFrame: Bool {
+        frame.width > 0 && frame.height > 0
+    }
 }
 
 enum AXMenuBar {
-    /// Status items ("menu extras") of every running app.
+    /// 获取所有运行中应用的状态栏图标（排除指定 PID，默认排除 Tuck 自身）。
     ///
-    /// Since macOS 26 every status item window is owned by Control Center, so the
-    /// Accessibility tree is the only reliable way to learn which app owns an item.
-    static func statusItems(excluding excludedPID: pid_t) -> [AXStatusItem] {
+    /// 自 macOS 26 起状态栏窗口由控制中心托管，macOS 27 起进一步合并进 MenuBarAgent 单一窗口，
+    /// 因此通过辅助功能树（AXExtrasMenuBar）查询是识别图标归属与屏幕坐标的可靠方式。
+    static func statusItems(excluding excludedPID: pid_t, includeOffScreen: Bool = false) -> [AXStatusItem] {
+        statusItems(excludingPID: excludedPID, includeOffScreen: includeOffScreen)
+    }
+
+    /// 获取所有运行中应用的状态栏图标（可选择不排除任何进程，用于计算整条状态栏范围）。
+    static func allStatusItems() -> [AXStatusItem] {
+        statusItems(excludingPID: nil, includeOffScreen: false)
+    }
+
+    /// 查询单个进程暴露的 AXExtrasMenuBar 状态栏图标列表。
+    static func statusItems(for pid: pid_t, useNegativeCache: Bool = false, includeOffScreen: Bool = false) -> [AXStatusItem] {
+        items(of: pid, useNegativeCache: useNegativeCache, includeOffScreen: includeOffScreen)
+    }
+
+    /// 清除无状态栏项的负缓存（在 macOS 27 解除隐藏断言后调用，避免刚恢复显示的 App 被跳过）。
+    static func clearNegativeCache() {
+        NegativeCache.clear()
+    }
+
+    /// 检测 macOS 27 的 MenuBarAgent 当前是否显示了原生刘海溢出指示按钮（menu-bar-overflow-indicator）。
+    /// 当返回 true 时，表示仍有左侧状态栏图标被折叠在刘海溢出区中。
+    static func hasMenuBarOverflow() -> Bool {
+        guard let agent = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first else {
+            return false
+        }
+        return items(of: agent.processIdentifier, useNegativeCache: false, includeOffScreen: false).contains {
+            $0.identifier == "menu-bar-overflow-indicator" && $0.hasVisibleFrame
+        }
+    }
+
+    private static func statusItems(excludingPID: pid_t?, includeOffScreen: Bool) -> [AXStatusItem] {
         let apps = NSWorkspace.shared.runningApplications.filter {
-            $0.processIdentifier != excludedPID && !$0.isTerminated && !NegativeCache.contains($0.processIdentifier)
+            $0.processIdentifier != excludingPID && !$0.isTerminated && !NegativeCache.contains($0.processIdentifier)
         }
         let pids = apps.map(\.processIdentifier)
+        guard !pids.isEmpty else { return [] }
         let results = UnsafeMutableBufferPointer<[AXStatusItem]>.allocate(capacity: pids.count)
         results.initialize(repeating: [])
         defer { results.deallocate() }
 
         DispatchQueue.concurrentPerform(iterations: pids.count) { index in
-            results[index] = items(of: pids[index])
+            results[index] = items(of: pids[index], useNegativeCache: true, includeOffScreen: includeOffScreen)
         }
         return results.flatMap { $0 }
     }
 
-    private static func items(of pid: pid_t) -> [AXStatusItem] {
-        let app = AXElement.application(pid)
+    private static func items(of pid: pid_t, useNegativeCache: Bool, includeOffScreen: Bool) -> [AXStatusItem] {
+        let app = AXElement.application(pid, timeout: 0.4)
         var value: AnyObject?
         let error = AXUIElementCopyAttributeValue(app.raw, "AXExtrasMenuBar" as CFString, &value)
         guard error == .success, let value, CFGetTypeID(value) == AXUIElementGetTypeID() else {
-            // Apps that answer "no status items" rarely grow one; skip them for a
-            // while. Timeouts are not cached, so a busy app is retried next scan.
-            if error == .noValue || error == .attributeUnsupported {
-                NegativeCache.insert(pid)
+            // 对不支持或无状态栏项的 App 做短时负缓存以保持扫描速度；
+            // macOS 27 上被原生隐藏或位于溢出区的 App 可能临时返回 noValue，因此仅缓存 attributeUnsupported。
+            if useNegativeCache {
+                let shouldCache = MenuBarHider.usesUnifiedMenuBar
+                    ? (error == .attributeUnsupported)
+                    : (error == .noValue || error == .attributeUnsupported)
+                if shouldCache {
+                    NegativeCache.insert(pid)
+                }
             }
             return []
         }
         let bar = AXElement(raw: value as! AXUIElement)
-        return bar.children.compactMap { child in
-            guard let frame = child.frame, frame.width > 0, frame.height > 0 else { return nil }
-            let description = child.attribute(kAXDescriptionAttribute, as: String.self)
-            let title = child.attribute(kAXTitleAttribute, as: String.self)
-            let label = [description, title].compactMap { $0?.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty }
+        let children = bar.children
+        let parsed: [AXStatusItem] = children.compactMap { child in
+            // MenuBarAgent 会将系统图标包裹在一层 AXGroup (AXHostingView) 内，需向下解包一层读取真实标识符与描述。
+            let role = child.attribute(kAXRoleAttribute, as: String.self)
+            let leaf = (role == kAXGroupRole) ? (child.children.first ?? child) : child
+            let frame = leaf.frame ?? child.frame ?? .zero
+            if !includeOffScreen && (frame.width <= 0 || frame.height <= 0) {
+                return nil
+            }
+            let description = leaf.attribute(kAXDescriptionAttribute, as: String.self)
+                ?? child.attribute(kAXDescriptionAttribute, as: String.self)
+            let title = leaf.attribute(kAXTitleAttribute, as: String.self)
+                ?? child.attribute(kAXTitleAttribute, as: String.self)
+            let help = (leaf.attribute(kAXHelpAttribute, as: String.self)
+                ?? child.attribute(kAXHelpAttribute, as: String.self))?
+                .components(separatedBy: .newlines).first
+            let label = [description, title, help]
+                .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+                .first { !$0.isEmpty }
+            let identifier = leaf.attribute(kAXIdentifierAttribute, as: String.self)
+                ?? child.attribute(kAXIdentifierAttribute, as: String.self)
             return AXStatusItem(
                 pid: pid,
-                element: child,
+                element: leaf,
                 frame: frame,
                 label: label,
-                identifier: child.attribute(kAXIdentifierAttribute, as: String.self)
+                identifier: identifier
             )
         }
+        if !parsed.isEmpty {
+            return parsed
+        }
+        // 某些应用在 macOS 27 原生溢出区或被隐藏时，AXExtrasMenuBar 仍存在但 children 为空；
+        // 返回容器占位信号，确保布局编辑器不会丢失这些菜单栏应用。
+        if includeOffScreen {
+            return [AXStatusItem(pid: pid, element: bar, frame: .zero, label: nil, identifier: nil, isContainerOnly: true)]
+        }
+        return []
     }
 
     /// Right edge of an app's menus, in CoreGraphics coordinates. Call off the
@@ -123,6 +190,10 @@ enum AXMenuBar {
 
         static func insert(_ pid: pid_t) {
             lock.withLock { entries[pid] = Date() }
+        }
+
+        static func clear() {
+            lock.withLock { entries.removeAll() }
         }
     }
 }

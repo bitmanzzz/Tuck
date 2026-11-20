@@ -33,6 +33,12 @@ final class TuckBarPanel: NSPanel {
         orderFrontRegardless()
     }
 
+    func reposition(below anchor: CGRect, on screen: NSScreen) {
+        self.anchor = anchor
+        self.targetScreen = screen
+        fit()
+    }
+
     func fit() {
         guard let contentView, let screen = targetScreen else { return }
         let size = contentView.fittingSize
@@ -70,13 +76,9 @@ struct TuckBarView: View {
                     .padding(.horizontal, 10)
             } else {
                 ForEach(items) { item in
-                    ItemTile(item: item, image: controller.images[item.windowID], height: 22)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            let modifiers = NSEvent.modifierFlags
-                            controller.activate(item, rightClick: modifiers.contains(.option) || modifiers.contains(.control))
-                        }
-                        .help(item.name)
+                    TuckBarItemButton(item: item, image: controller.images[item.windowID]) { rightClick in
+                        controller.activate(item, rightClick: rightClick)
+                    }
                 }
             }
         }
@@ -89,34 +91,173 @@ struct TuckBarView: View {
     }
 }
 
-/// An item's captured image, or its app icon when no capture is available.
+/// Tuck Bar 单个隐藏图标按钮：支持悬停高亮、左键点击与鼠标右键点击，避免 SwiftUI onTapGesture 忽略右键。
+private struct TuckBarItemButton: View {
+    let item: MenuBarItem
+    let image: NSImage?
+    let onActivate: (_ rightClick: Bool) -> Void
+
+    @State private var isHovered = false
+    @State private var isPressed = false
+
+    var body: some View {
+        ItemTile(item: item, image: image, height: 22)
+            .padding(.horizontal, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(backgroundColor)
+            )
+            .overlay(
+                MouseClickOverlay(
+                    toolTip: item.name,
+                    onHoverChanged: { isHovered = $0 },
+                    onPressChanged: { isPressed = $0 },
+                    onClick: { rightClick in onActivate(rightClick) }
+                )
+            )
+            .help(item.name)
+    }
+
+    private var backgroundColor: Color {
+        if isPressed {
+            return Color.primary.opacity(0.22)
+        }
+        if isHovered {
+            return Color.primary.opacity(0.12)
+        }
+        return Color.clear
+    }
+}
+
+/// 通过 AppKit NSView 接收非激活面板上的首次左键与右键点击及悬停状态。
+private struct MouseClickOverlay: NSViewRepresentable {
+    let toolTip: String
+    let onHoverChanged: (Bool) -> Void
+    let onPressChanged: (Bool) -> Void
+    let onClick: (Bool) -> Void
+
+    func makeNSView(context: Context) -> ClickCaptureView {
+        let view = ClickCaptureView()
+        view.toolTip = toolTip
+        view.onHoverChanged = onHoverChanged
+        view.onPressChanged = onPressChanged
+        view.onClick = onClick
+        return view
+    }
+
+    func updateNSView(_ nsView: ClickCaptureView, context: Context) {
+        nsView.toolTip = toolTip
+        nsView.onHoverChanged = onHoverChanged
+        nsView.onPressChanged = onPressChanged
+        nsView.onClick = onClick
+    }
+
+    final class ClickCaptureView: NSView {
+        var onHoverChanged: ((Bool) -> Void)?
+        var onPressChanged: ((Bool) -> Void)?
+        var onClick: ((Bool) -> Void)?
+        private var trackingArea: NSTrackingArea?
+
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+        override var mouseDownCanMoveWindow: Bool { false }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let trackingArea {
+                removeTrackingArea(trackingArea)
+            }
+            let area = NSTrackingArea(
+                rect: bounds,
+                options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                owner: self,
+                userInfo: nil
+            )
+            addTrackingArea(area)
+            trackingArea = area
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            onHoverChanged?(true)
+        }
+
+        override func mouseExited(with event: NSEvent) {
+            onHoverChanged?(false)
+            onPressChanged?(false)
+        }
+
+        override func mouseDown(with event: NSEvent) {
+            onPressChanged?(true)
+        }
+
+        override func mouseUp(with event: NSEvent) {
+            onPressChanged?(false)
+            let local = convert(event.locationInWindow, from: nil)
+            guard bounds.contains(local) else { return }
+            let rightClick = event.modifierFlags.contains(.option) || event.modifierFlags.contains(.control)
+            onClick?(rightClick)
+        }
+
+        override func rightMouseDown(with event: NSEvent) {
+            onPressChanged?(true)
+        }
+
+        override func rightMouseUp(with event: NSEvent) {
+            onPressChanged?(false)
+            let local = convert(event.locationInWindow, from: nil)
+            guard bounds.contains(local) else { return }
+            onClick?(true)
+        }
+    }
+}
+
+/// An item's captured image, or its app icon / system symbol when no capture is available.
 struct ItemTile: View {
     let item: MenuBarItem
     let image: NSImage?
     let height: CGFloat
+    var showLabel = false
 
     var body: some View {
-        Group {
-            if let image {
-                Image(nsImage: image)
-                    .renderingMode(image.isTemplate ? .template : .original)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(.primary)
-                    .frame(width: image.size.width * height / max(image.size.height, 1), height: height)
-            } else if let icon = item.application?.icon {
-                Image(nsImage: icon)
-                    .resizable()
-                    .frame(width: height - 4, height: height - 4)
-                    .padding(.horizontal, 6)
-            } else {
-                Text(String(item.name.prefix(2)))
-                    .font(.caption.weight(.medium))
-                    .padding(.horizontal, 6)
-                    .frame(height: height)
+        HStack(spacing: 5) {
+            iconView
+            if showLabel {
+                Text(item.name)
+                    .font(.callout)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: 130, alignment: .leading)
             }
         }
+        .padding(.horizontal, showLabel ? 6 : 0)
         .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private var iconView: some View {
+        if let image {
+            Image(nsImage: image)
+                .renderingMode(image.isTemplate ? .template : .original)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(.primary)
+                .frame(width: image.size.width * height / max(image.size.height, 1), height: height)
+        } else if let symbol = item.systemSymbolName {
+            Image(systemName: symbol)
+                .font(.system(size: height * 0.65, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: height, height: height)
+        } else if let icon = item.appIcon {
+            Image(nsImage: icon)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: height - 2, height: height - 2)
+                .padding(.horizontal, showLabel ? 0 : 6)
+        } else {
+            Text(String(item.name.prefix(2)))
+                .font(.caption.weight(.medium))
+                .padding(.horizontal, showLabel ? 2 : 6)
+                .frame(height: height)
+        }
     }
 }
 

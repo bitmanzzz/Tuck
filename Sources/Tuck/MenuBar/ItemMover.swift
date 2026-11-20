@@ -81,22 +81,108 @@ final class ItemMover {
     /// Opens an item's menu. Prefers the Accessibility press action, which does
     /// not touch the cursor; falls back to a synthetic click.
     func click(_ item: MenuBarItem, rightButton: Bool = false) async {
+        if MenuBarHider.usesUnifiedMenuBar {
+            await clickUnified(item, rightButton: rightButton)
+            return
+        }
         if !rightButton, let element = item.axElement, element.press() {
             return
         }
         guard let frame = WindowServer.frame(of: item.windowID), isOnScreen(frame) else { return }
+        await syntheticClick(at: frame.center, rightButton: rightButton)
+    }
+
+    /// macOS 27 激活点击路径：轮询等待刚放行的图标进入可见菜单栏后，向其屏幕中心发送真实左键/右键点击。
+    private func clickUnified(_ item: MenuBarItem, rightButton: Bool) async {
+        let candidatePIDs: [pid_t]
+        if let bundleID = item.bundleID {
+            let running = NSWorkspace.shared.runningApplications
+            let relatedBundles = ItemScanner.relatedBundleIDs(for: bundleID, in: running)
+            let pids = running.filter { !$0.isTerminated && $0.bundleIdentifier.map(relatedBundles.contains) == true }
+                .map(\.processIdentifier)
+            candidatePIDs = pids.isEmpty ? [item.pid] : pids
+        } else {
+            candidatePIDs = [item.pid]
+        }
+
+        let visibleScreens = NSScreen.screens.map(\.cgFrame)
+        var freshAX: AXStatusItem?
+
+        // 等待 MenuBarAgent 应用可见性断言并将该图标渲染到刘海右侧可见区域（最多等待约 1.2s）。
+        for _ in 0..<24 {
+            let found = await Task.detached { () -> AXStatusItem? in
+                for pid in candidatePIDs {
+                    let items = AXMenuBar.statusItems(for: pid).filter { item in
+                        item.hasVisibleFrame && visibleScreens.contains { $0.contains(item.frame.center) }
+                    }
+                    if let first = items.first {
+                        return first
+                    }
+                }
+                return nil
+            }.value
+            if let found {
+                freshAX = found
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+
+        let targetFrame = freshAX?.frame ?? item.frame
+        if targetFrame.width > 0, isOnScreen(targetFrame) {
+            await syntheticClick(at: targetFrame.center, rightButton: rightButton)
+            return
+        }
+
+        if !rightButton, let element = freshAX?.element ?? item.axElement {
+            element.press()
+        }
+    }
+
+    /// macOS 27 在屏 ⌘-拖拽（用于同屏内调整相邻图标顺序，依赖真实屏幕坐标与渐进拖拽事件）。
+    func drag(from startFrame: CGRect, to endPoint: CGPoint) async {
+        guard startFrame.width > 0, isOnScreen(startFrame) else { return }
         isBusy = true
         defer { isBusy = false }
-        let point = frame.center
+
+        let start = startFrame.center
+        await withHiddenCursor {
+            postHID(.mouseMoved, at: start, flags: [])
+            try? await Task.sleep(for: .milliseconds(30))
+            postHID(.mouseMoved, at: start, flags: .maskCommand)
+            try? await Task.sleep(for: .milliseconds(30))
+            postHID(.leftMouseDown, at: start, flags: .maskCommand)
+            try? await Task.sleep(for: .milliseconds(85))
+
+            let steps = 10
+            for step in 1...steps {
+                let t = CGFloat(step) / CGFloat(steps)
+                let point = CGPoint(
+                    x: start.x + (endPoint.x - start.x) * t,
+                    y: start.y + (endPoint.y - start.y) * t
+                )
+                postHID(.leftMouseDragged, at: point, flags: .maskCommand)
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+            try? await Task.sleep(for: .milliseconds(60))
+            postHID(.leftMouseUp, at: endPoint, flags: .maskCommand)
+            try? await Task.sleep(for: .milliseconds(220))
+        }
+    }
+
+    private func syntheticClick(at point: CGPoint, rightButton: Bool) async {
+        isBusy = true
+        defer { isBusy = false }
         let (down, up): (CGEventType, CGEventType) = rightButton ? (.rightMouseDown, .rightMouseUp) : (.leftMouseDown, .leftMouseUp)
         let button: CGMouseButton = rightButton ? .right : .left
         let origin = Mouse.location
         post(.mouseMoved, at: point, button: button)
-        try? await Task.sleep(for: .milliseconds(20))
+        try? await Task.sleep(for: .milliseconds(35))
         post(down, at: point, button: button)
-        try? await Task.sleep(for: .milliseconds(30))
+        try? await Task.sleep(for: .milliseconds(45))
         post(up, at: point, button: button)
-        try? await Task.sleep(for: .milliseconds(20))
+        // 留出时间让目标应用在 mouseUp 回调里读取光标坐标以定位菜单或 Popover，然后再移回原位。
+        try? await Task.sleep(for: .milliseconds(120))
         CGWarpMouseCursorPosition(origin)
     }
 
@@ -156,12 +242,19 @@ final class ItemMover {
     }
 
     private func post(_ type: CGEventType, at point: CGPoint, button: CGMouseButton = .left) {
+        postHID(type, at: point, button: button, flags: [])
+    }
+
+    private func postHID(_ type: CGEventType, at point: CGPoint, button: CGMouseButton = .left, flags: CGEventFlags) {
         guard let event = CGEvent(
             mouseEventSource: CGEventSource(stateID: .hidSystemState),
             mouseType: type,
             mouseCursorPosition: point,
             mouseButton: button
         ) else { return }
+        if !flags.isEmpty {
+            event.flags = flags
+        }
         if type == .leftMouseDown || type == .leftMouseUp || type == .rightMouseDown || type == .rightMouseUp {
             event.setIntegerValueField(.mouseEventClickState, value: 1)
         }

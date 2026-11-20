@@ -72,7 +72,7 @@ struct SettingsView: View {
             HotkeysPane(settings: settings)
                 .tabItem { Label("Hotkeys", systemImage: "keyboard") }
                 .tag(SettingsTab.hotkeys)
-            PermissionsPane()
+            PermissionsPane(controller: controller)
                 .tabItem { Label("Permissions", systemImage: "lock.shield") }
                 .tag(SettingsTab.permissions)
             AboutPane()
@@ -199,8 +199,13 @@ struct LayoutPane: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                ForEach(sections) { section in
-                    SectionRow(controller: controller, section: section)
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        ForEach(sections) { section in
+                            SectionRow(controller: controller, section: section)
+                        }
+                    }
+                    .padding(.vertical, 2)
                 }
                 HStack {
                     if let error = controller.lastError {
@@ -219,10 +224,15 @@ struct LayoutPane: View {
                             .foregroundStyle(.secondary)
                     }
                     Button("Refresh") {
-                        Task { await controller.refreshItems(captureImages: true) }
+                        Task {
+                            if MenuBarHider.isSupported {
+                                await controller.discoverAllUnifiedItems(resetFromDivider: false)
+                            } else {
+                                await controller.refreshItems(captureImages: true)
+                            }
+                        }
                     }
                 }
-                Spacer(minLength: 0)
             }
         }
         .padding(20)
@@ -243,17 +253,30 @@ private struct SectionRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(section.title)
-                .font(.headline)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 4) {
-                    ForEach(items) { item in
-                        tile(for: item)
+            HStack(spacing: 6) {
+                Text(section.title)
+                    .font(.headline)
+                Text("(\(items.count))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            Group {
+                if items.isEmpty {
+                    Text("Drag items here")
+                        .font(.callout)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                        .padding(.horizontal, 10)
+                } else {
+                    WrappingHStack(horizontalSpacing: 6, verticalSpacing: 6) {
+                        ForEach(items) { item in
+                            tile(for: item)
+                        }
                     }
-                    Spacer(minLength: 40)
+                    .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                    .padding(8)
                 }
-                .padding(.horizontal, 8)
-                .frame(minHeight: 40)
             }
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -272,21 +295,24 @@ private struct SectionRow: View {
 
     @ViewBuilder
     private func tile(for item: MenuBarItem) -> some View {
-        let tile = ItemTile(item: item, image: controller.images[item.windowID], height: 22)
+        let tile = ItemTile(item: item, image: controller.images[item.windowID], height: 20, showLabel: true)
             .padding(.horizontal, 2)
-            .background(RoundedRectangle(cornerRadius: 5).fill(Color.primary.opacity(0.06)))
+            .padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.primary.opacity(0.06)))
             .overlay {
                 if item.isTuck {
-                    RoundedRectangle(cornerRadius: 5).strokeBorder(Color.accentColor, lineWidth: 1.5)
+                    RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 1.5)
                 }
             }
             .help(item.name)
             .contextMenu {
-                ForEach(MenuBarSection.allCases.filter { $0 != section && !item.isTuck && (controller.settings.alwaysHiddenEnabled || $0 != .alwaysHidden) }) { target in
-                    Button {
-                        Task { await controller.move(item, to: target, before: nil) }
-                    } label: {
-                        Text("Move to \(String(localized: target.title))")
+                if item.canHide {
+                    ForEach(MenuBarSection.allCases.filter { $0 != section && (controller.settings.alwaysHiddenEnabled || $0 != .alwaysHidden) }) { target in
+                        Button {
+                            Task { await controller.move(item, to: target, before: nil) }
+                        } label: {
+                            Text("Move to \(String(localized: target.title))")
+                        }
                     }
                 }
             }
@@ -306,10 +332,56 @@ private struct SectionRow: View {
             let windowID = CGWindowID(key),
             let item = controller.items.values.joined().first(where: { $0.windowID == windowID }),
             item.windowID != target?.windowID,
-            !item.isTuck || section == .visible
+            item.isMovable,
+            item.canHide || section == .visible
         else { return false }
         Task { await controller.move(item, to: section, before: target) }
         return true
+    }
+}
+
+/// 简单的流式自动换行布局，使布局编辑器中的所有图标卡片清晰平铺。
+private struct WrappingHStack: Layout {
+    var horizontalSpacing: CGFloat = 6
+    var verticalSpacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var lineHeight: CGFloat = 0
+        var usedWidth: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > maxWidth {
+                x = 0
+                y += lineHeight + verticalSpacing
+                lineHeight = 0
+            }
+            x += size.width + horizontalSpacing
+            usedWidth = max(usedWidth, x - horizontalSpacing)
+            lineHeight = max(lineHeight, size.height)
+        }
+        return CGSize(width: maxWidth.isFinite ? maxWidth : usedWidth, height: y + lineHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var lineHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX && x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += lineHeight + verticalSpacing
+                lineHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + horizontalSpacing
+            lineHeight = max(lineHeight, size.height)
+        }
     }
 }
 
@@ -402,15 +474,24 @@ struct HotkeyRecorder: View {
 // MARK: - Permissions
 
 struct PermissionsPane: View {
+    @ObservedObject var controller: MenuBarController
     @State private var accessibility = Permissions.accessibility
     @State private var screenRecording = Permissions.screenRecording
+
+    private var accessibilityDetail: LocalizedStringKey {
+        if MenuBarHider.usesUnifiedMenuBar {
+            "Required on macOS 27+ to hide, identify, open and rearrange other apps' menu bar items, and for hover and click triggers."
+        } else {
+            "Required to identify, open and rearrange other apps' menu bar items, and for hover and click triggers. Basic hiding works without it."
+        }
+    }
 
     var body: some View {
         Form {
             Section {
                 permissionRow(
                     title: "Accessibility",
-                    detail: "Required to identify, open and rearrange other apps' menu bar items, and for hover and click triggers. Basic hiding works without it.",
+                    detail: accessibilityDetail,
                     granted: accessibility,
                     action: Permissions.requestAccessibility
                 )
@@ -435,8 +516,13 @@ struct PermissionsPane: View {
         // this pane is on screen; the task ends when it disappears.
         .task {
             while !Task.isCancelled {
-                accessibility = Permissions.accessibility
+                let newAccessibility = Permissions.accessibility
+                let becameGranted = !accessibility && newAccessibility
+                accessibility = newAccessibility
                 screenRecording = Permissions.screenRecording
+                if becameGranted {
+                    controller.handlePermissionsGranted()
+                }
                 try? await Task.sleep(for: .seconds(1))
             }
         }

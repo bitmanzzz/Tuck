@@ -83,7 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Never leave items stranded off-screen.
-        controller.conceal()
+        // Never leave items stranded off-screen or hidden by an active assertion.
+        controller.prepareForTermination()
     }
 }

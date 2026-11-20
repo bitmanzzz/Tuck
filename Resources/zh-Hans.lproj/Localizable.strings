@@ -10,6 +10,8 @@
 "macOS didn't accept the move." = "macOS 没有接受这次移动。";
 "macOS put the item in a different spot." = "macOS 把图标放到了别的位置。";
 "The Tuck icon must sit to the right of the divider. Hold ⌘ and drag it back." = "Tuck 图标必须在分隔线右侧。请按住 ⌘ 把它拖回去。";
+"This item is currently hidden in the system overflow area («). Hide other items first to move it." = "该图标当前被系统折叠在溢出区（«）中，请先隐藏其他图标腾出空间后再移动它。";
+"The target item is currently in the system overflow area («). Hide other items first to move next to it." = "目标图标当前被系统折叠在溢出区（«）中，请先隐藏其他图标腾出空间后再调整位置。";
 
 /* Status menu */
 "Hide Hidden Items" = "收起隐藏的图标";
@@ -58,6 +60,7 @@
 "Grant Screen Recording to see real icons." = "授予屏幕录制权限后可显示真实图标。";
 "Refresh" = "刷新";
 "Move to %@" = "移到“%@”";
+"Drag items here" = "将图标拖到这里";
 
 /* Hotkeys */
 "Show or hide hidden items" = "显示或收起隐藏的图标";
@@ -70,6 +73,7 @@
 /* Permissions */
 "Accessibility" = "辅助功能";
 "Required to identify, open and rearrange other apps' menu bar items, and for hover and click triggers. Basic hiding works without it." = "用于识别、打开和重新排列其他 App 的菜单栏图标，以及悬停和点击触发。不授权时，基础的隐藏功能仍然可用。";
+"Required on macOS 27+ to hide, identify, open and rearrange other apps' menu bar items, and for hover and click triggers." = "在 macOS 27 及以上系统上，用于隐藏、识别、打开和重新排列其他 App 的菜单栏图标，以及悬停和点击触发。";
 "Screen Recording" = "屏幕录制";
 "Optional. Shows the real icons of hidden items in Tuck Bar and the layout editor. Tuck never records your screen. Without it, app icons are shown." = "可选。用于在 Tuck Bar 和布局编辑器中显示隐藏图标的真实样子。Tuck 不会录制你的屏幕。不授权时显示 App 图标。";
 "macOS may require a relaunch before new permissions take effect." = "新授予的权限可能需要重启 Tuck 才能生效。";

@@ -65,6 +65,31 @@ final class Settings: ObservableObject {
             defaults.set(try? JSONEncoder().encode(encoded), forKey: Keys.hotkeys)
         }
     }
+    /// macOS 27+ 原生隐藏模式下各第三方 App（按 bundleIdentifier）的分区归属。
+    @Published var bundleSections: [String: MenuBarSection] {
+        didSet {
+            let raw = bundleSections.mapValues(\.rawValue)
+            defaults.set(raw, forKey: Keys.bundleSections)
+        }
+    }
+
+    func setSection(_ section: MenuBarSection, for bundleID: String) {
+        guard bundleSections[bundleID] != section else { return }
+        bundleSections[bundleID] = section
+    }
+
+    func updateSections(_ updates: [String: MenuBarSection]) {
+        guard !updates.isEmpty else { return }
+        var next = bundleSections
+        var changed = false
+        for (bundleID, section) in updates where next[bundleID] != section {
+            next[bundleID] = section
+            changed = true
+        }
+        if changed {
+            bundleSections = next
+        }
+    }
 
     var launchAtLogin: Bool {
         get { SMAppService.mainApp.status == .enabled }
@@ -111,6 +136,13 @@ final class Settings: ObservableObject {
         } else {
             hotkeys = [:]
         }
+        if let rawSections = defaults.dictionary(forKey: Keys.bundleSections) as? [String: String] {
+            bundleSections = Dictionary(uniqueKeysWithValues: rawSections.compactMap { key, value in
+                MenuBarSection(rawValue: value).map { (key, $0) }
+            })
+        } else {
+            bundleSections = [:]
+        }
     }
 
     private enum Keys {
@@ -124,5 +156,6 @@ final class Settings: ObservableObject {
         static let alwaysHiddenEnabled = "alwaysHiddenEnabled"
         static let checkForUpdates = "checkForUpdates"
         static let hotkeys = "hotkeys"
+        static let bundleSections = "bundleSections"
     }
 }

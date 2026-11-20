@@ -70,7 +70,7 @@ enum WindowServer {
     }
 
     /// True when a menu, or a popover attached to the menu bar, is currently open.
-    static func isMenuBarInterfaceOpen(menuBarHeight: CGFloat) -> Bool {
+    static func isMenuBarInterfaceOpen(menuBarHeight: CGFloat, activePIDs: Set<pid_t> = []) -> Bool {
         guard let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[CFString: Any]] else {
             return false
         }
@@ -92,6 +92,13 @@ enum WindowServer {
             else { continue }
             if ignoredPIDs.contains(pid) || screenSizes.contains(bounds.size) { continue }
             if layer == popUpLevel { return true }
+            if activePIDs.contains(pid),
+               layer != statusLevel,
+               layer != mainMenuLevel,
+               bounds.minY <= menuBarHeight + 48,
+               bounds.height >= 24 {
+                return true
+            }
             if layer <= 0 || layer == statusLevel || layer == mainMenuLevel || window[kCGWindowOwnerName] as? String == "Window Server" {
                 continue
             }

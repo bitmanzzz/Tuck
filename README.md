@@ -6,7 +6,7 @@ A tiny, native menu bar manager for macOS. Hide the menu bar icons you don't nee
 
 - **Small**: about 1 MB, universal (Apple silicon and Intel), no dependencies.
 - **Native**: Swift, AppKit and SwiftUI. No Electron, no web views.
-- **macOS 14 Sonoma and later**, including macOS 15 Sequoia and macOS 26 Tahoe.
+- **macOS 14 Sonoma and later**, including macOS 15 Sequoia, macOS 26 Tahoe and macOS 27.
 
 ## Features
 

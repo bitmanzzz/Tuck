@@ -6,7 +6,7 @@
 
 - **小**：约 1 MB，通用二进制（Apple 芯片和 Intel），没有第三方依赖。
 - **原生**：Swift、AppKit 和 SwiftUI，不用 Electron，也不用网页视图。
-- **支持 macOS 14 Sonoma 及以上**，包括 macOS 15 Sequoia 和 macOS 26 Tahoe。
+- **支持 macOS 14 Sonoma 及以上**，包括 macOS 15 Sequoia、macOS 26 Tahoe 与 macOS 27。
 
 ## 功能
 
